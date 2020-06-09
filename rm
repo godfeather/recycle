@@ -1,0 +1,126 @@
+#/bin/bash
+
+
+showFile(){
+	all=`ls $1`
+	for i in ${all}
+		do
+			if [ -d "$1$i" ];then
+				showFile "$1$i/"
+				else
+					echo "Message:$i removed to recycle"
+			fi
+		done
+
+}
+		user=`whoami`
+if [ ! -d '/.RECYCLE/' ];then
+		userHome=`ls ~ -d`
+		mkdir -p "/.RECYCLE/"
+		chmod 777 "/.RECYCLE"
+
+fi
+if [ ! -d "/.RECYCLE/.$user" ];then
+	mkdir "/.RECYCLE/.$user"
+	mkdir 700 "/.RECYCLE/.$user"
+	mkdir "$userHome/.recycleInfo/"
+	chmod 700 "$userHome/.recycleInfo"
+		touch "$userHome/.recycleInfo/.recycleTable.tab"
+		chmod 600 "$userHome/.recycleInfo/.recycleTable.tab"
+fi
+	for i in $@
+	do
+		if [ "$i" == "-i" ];then
+			continue
+		fi
+		fold=`echo "$i"|grep "*"`
+		if [ "$fold"=="" ];then
+			filequeue="$i"
+			else
+			filequeue=`ls "$i"`
+		fi
+		for index in "${filequeue[@]}"
+		do
+		if [ ! -e "$index" ];then
+			echo "Warning:[$index]no such file or directory!"
+			continue;	
+		fi
+		if [ ! -w "$index" ];then
+			echo "Warning:[$index]permission denied!need write permission for this file"
+			continue;
+		fi
+		b="true"
+		showFile "$index"
+#判断文件夹中是否包含重复的文件名，如果有，则加上序号(1)
+		if [ -e "/.RECYCLE/.$user/$index" ];then
+			serialNumber=1
+			until [ ! -e "/.RECYCLE/.$user/$index($serialNumber)" ]
+			do
+				serialNumber=`expr $serialNumber + 1`
+			done
+			
+			targetName="$index($serialNumber)"
+		else 
+			targetName="$index"
+		fi
+#获取文件的简单名称
+		while [ "0"=="0" ]
+		do
+			i=`expr index "$targetName" "/"`
+			if [ "$i" -eq 0 ];then
+				targetName=$targetName
+				break
+				else
+				if [ "$i" -eq "${#targetName}" ];then
+					targetName=${targetName:0:`expr "${#targetName} - 1"`}
+				else	
+					targetName=${targetName:$i}
+				fi
+			fi
+		done
+		mv "$index" "/.RECYCLE/.$user/$targetName"
+		strIndex=0
+		charIndex=-1
+# 通过遍历整个字符串的单个字符来查找指定的字符
+		while [ "$strIndex" -lt ${#index} ]
+			do
+				strCell=${index:$strIndex:1}
+				if [ "$strCell" == "/" ];then
+					charIndex=$strIndex
+				fi
+				strIndex=`expr "$strIndex" + 1`	
+			done
+# 查找文件的起始路径，方便下面的find方法去获取文件的绝对路径
+		if [ $charIndex -eq -1 ];then
+			findPath='.'
+			fileName="$targetName"
+		elif [ "$charIndex" -eq `expr "${#index}" - 1` ];then
+				findPath='.'
+				fileName="$targetName"
+		else
+#截取路径字符串，用于接下来绝对路径的查找
+			findPath=${index:0:`expr 1 + $charIndex`}
+			ind2=`expr ${#index} - $charIndex`
+			fileName="$targetName"
+		fi
+#通过命令查找文件的绝对路径
+		currentPath=`pwd`
+		cd "$findPath"
+		abPath=`pwd`
+		cd "$currentPath"
+#存入文件的原始位置信息
+		userhome=`ls ~ -d`	
+		tabFile="$userhome/.recycleInfo/.recycleTable.tab"
+		if [ -e "$userhome/.recycleInfo" ]&&[ -d "$userhome/.recycleInfo" ];then
+			printf ""
+		else
+			mkdir "$userhome/.recycleInfo"
+		fi
+		if [ ! -s "$tabFile" ]||[ ! -e "$tabFile" ];then
+			print="$fileName=$abPath"
+		else
+			print="#$fileName=$abPath"
+		fi
+		printf  "$print" >> "$tabFile"
+		done
+	done

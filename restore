@@ -1,0 +1,32 @@
+#/bin/bash
+if [ "$1" == "" ];then
+	echo "syntax:restore [file] [file]"
+	echo "restore your file or directory from recycle"
+	exit
+fi
+
+for param in $@
+do
+	if [ "$param" == "-i" ];then
+		continue;
+	fi	
+	userHome=`ls ~ "-d"`
+#下面文件是否存在的判断条件测试完毕需要更改，无论在任何位置输入字符，都与回收站进行对比
+	user=`whoami`
+	parent="/.RECYCLE/.$user"
+	if [ ! -e "$parent/$param" ];then
+		echo "Warning:no object:$param"
+		continue
+	fi
+	tabFile="$userHome/.recycleInfo/.recycleTable.tab"
+	matched=`commonName.sh "$tabFile" "$param"`
+	if [ "$matched" == "" ];then
+		echo "Warning:$param can't find the way!"
+		continue	
+	fi
+	splitIndex=`expr index "$matched" "="`
+	targetpath=${matched:splitIndex}
+	
+	mv "$parent/$param" "$targetpath"
+	echo "$param had been restored to target:[$targetpath] "
+done
